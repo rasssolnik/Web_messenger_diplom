@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NewMessenger</title>
+    <script src="/socket.io/socket.io.msgpack.min.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f2f2f7;
+            --text: #000000;
+            --text-muted: #8e8e93;
+            --border: #d1d1d6;
+            --accent: #007aff;
+            --msg-my: #007aff;
+            --msg-other: #e5e5ea;
+            --text-my: #ffffff;
+            --text-other: #000000;
+        }
+
+        [data-theme="dark"] {
+            --bg: #000000;
+            --surface: #1c1c1e;
+            --text: #ffffff;
+            --text-muted: #8e8e93;
+            --border: #38383a;
+            --msg-my: #0a84ff;
+            --msg-other: #2c2c2e;
+            --text-my: #ffffff;
+            --text-other: #ffffff;
+            --accent: #0a84ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            transition: background-color 0.3s;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: row;
+            position: relative;
+        }
+
+        input {
+            width: 100%;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            outline: none;
+            transition: 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+        }
+
+        .overlay-screen {
+            position: absolute;
+            inset: 0;
+            background: var(--bg);
+            z-index: 9000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: var(--bg);
+            width: 100%;
+            max-width: 400px;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            color: var(--text);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 16px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            margin-top: 10px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+            margin-top: 10px;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            padding: 12px 20px;
+            transition: 0.1s;
+        }
+
+        .list-item:hover {
+            background: var(--surface);
+        }
+
+        .fab-btn {
+            display: none;
+            position: absolute;
+            bottom: 85px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            font-size: 28px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            z-index: 90;
+            transition: transform 0.2s;
+        }
+
+        .fab-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .fab-btn:active {
+            transform: scale(0.95);
+        }
+
+        #main-ui {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            background: var(--bg);
+            position: relative;
+        }
+
+        header {
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            height: 60px;
+            flex-shrink: 0;
+        }
+
+        header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--text);
+            transition: 0.2s;
+        }
+
+        .header-btn:hover {
+            background: var(--surface);
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+            padding-bottom: 70px;
+        }
+
+        nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 65px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            width: 25%;
+            padding: 6px 0;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+        }
+
+        .nav-icon {
+            font-size: 22px;
+            margin-bottom: 2px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        #chat-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: var(--bg);
+            z-index: 2000;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--bg);
+        }
+
+        #pc-placeholder {
+            display: none;
+        }
+
+        .back-btn {
+            display: block;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text);
+            cursor: pointer;
+            padding: 10px;
+            margin-left: -10px;
+        }
+
+        .msg-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            max-width: 85%;
+        }
+
+        .msg-container.my {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .msg-container.other {
+            align-self: flex-start;
+        }
+
+        .msg-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+            color: white;
+        }
+
+        .msg-bubble {
+            padding: 8px 12px;
+            border-radius: 16px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-width: 80px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+
+        .my .msg-bubble {
+            background-color: var(--msg-my);
+            color: var(--text-my);
+            border-bottom-right-radius: 4px;
+        }
+
+        .other .msg-bubble {
+            background-color: var(--msg-other);
+            color: var(--text-other);
+            border-bottom-left-radius: 4px;
+        }
+
+        .msg-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .msg-rank {
+            font-weight: 500;
+            opacity: 0.6;
+            font-size: 11px;
+        }
+
+        .other .msg-header {
+            color: var(--accent);
+        }
+
+        .msg-text {
+            font-size: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .msg-role-tag {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            font-size: 10px;
+            opacity: 0.4;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        #input-area {
+            padding: 10px 15px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            background: var(--surface);
+        }
+
+        #chat-input {
+            margin-bottom: 0;
+            flex: 1;
+            height: 45px;
+            border-radius: 25px;
+            padding: 0 20px;
+            border: none;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .unread-badge {
+            background: var(--accent);
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: auto;
+        }
+
+        .rank-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: var(--accent);
+            color: white;
+            border-radius: 10px;
+            margin-left: 8px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .rank-admin {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: #ff9f0a;
+            color: white;
+            border-radius: 10px;
+            margin-left: 8px;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .group-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: 10px;
+            margin-left: 8px;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        /* Новости */
+        #news-feed {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .news-card {
+            background: var(--surface);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .news-img {
+            width: 100%;
+            height: auto;
+            max-height: 450px;
+            object-fit: contain;
+            background-color: var(--bg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .news-content {
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .news-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .news-date {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .news-text {
+            font-size: 15px;
+            line-height: 1.5;
+            color: var(--text);
+            white-space: pre-wrap;
+            margin-top: 5px;
+        }
+
+        .news-author {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #sidebar-resizer {
+            display: none;
+        }
+
+        @media (min-width: 1024px) {
+            #app {
+                flex-direction: row;
+            }
+
+            #main-ui {
+                width: 380px;
+                min-width: 250px;
+                max-width: 50vw;
+                flex-shrink: 0;
+                border-right: 1px solid var(--border);
+                display: flex !important;
+                flex-direction: column;
+                height: 100vh;
+                position: relative;
+            }
+
+            #chat-overlay {
+                position: static !important;
+                inset: auto !important;
+                flex: 1;
+                z-index: 10;
+                border-left: none;
+            }
+
+            .back-btn {
+                display: none !important;
+            }
+
+            #pc-placeholder {
+                display: flex;
+                flex: 1;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: var(--bg);
+                color: var(--text-muted);
+            }
+
+            #chat-overlay[style*="display: flex"]~#pc-placeholder {
+                display: none !important;
+            }
+
+            /* Вывод новостей в основное окно на ПК */
+            #news-sec.active {
+                position: fixed;
+                left: 380px;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                background: var(--bg);
+                z-index: 30;
+                border-left: 1px solid var(--border);
+                overflow-y: auto;
+                padding-bottom: 20px;
+            }
+
+            .desktop-keep-active {
+                display: block !important;
+            }
+
+            #sidebar-resizer {
+                display: block;
+                position: absolute;
+                right: -3px;
+                top: 0;
+                bottom: 0;
+                width: 6px;
+                cursor: col-resize;
+                z-index: 1000;
+                background: transparent;
+                transition: background 0.2s;
+            }
+
+            #sidebar-resizer:hover,
+            #sidebar-resizer.is-resizing {
+                background: var(--accent);
+            }
+        }
+    </style>
+</head>
+
+<body data-theme="dark">
+
+    <div id="app">
+        <div id="auth-screen" class="overlay-screen">
+            <div style="width: 100%; max-width: 350px; text-align: center;">
+                <div style="font-size: 60px; margin-bottom: 10px; color: var(--accent);">💬</div>
+                <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 5px; color: var(--text);">NewMessenger</h1>
+                <p style="color: var(--text-muted); margin-bottom: 30px; font-size: 16px;">Войдите, чтобы начать общение
+                </p>
+                <input type="text" id="auth-nick" placeholder="Никнейм">
+                <input type="password" id="auth-pass" placeholder="Пароль">
+                <button class="btn btn-primary" onclick="handleAuth('login')">Войти</button>
+                <button class="btn btn-outline" onclick="handleAuth('register')">Создать аккаунт</button>
+            </div>
+        </div>
+
+        <div id="group-info-overlay" class="modal-overlay">
+            <div class="modal-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 style="margin:0; font-size: 18px;">Участники беседы</h3>
+                    <button onclick="closeModal('group-info-overlay')"
+                        style="background:none; border:none; color:var(--text); font-size:22px; cursor:pointer;">✖</button>
+                </div>
+                <div id="admin-controls" style="margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;">
+                </div>
+                <div id="group-members-list"
+                    style="max-height:300px; overflow-y:auto; text-align:left; border-top:1px solid var(--border); padding-top:10px;">
+                </div>
+            </div>
+        </div>
+
+        <div id="create-group-overlay" class="modal-overlay">
+            <div class="modal-card">
+                <h3 style="margin-bottom:18px; font-size: 18px;">Новая беседа</h3>
+                <input type="text" id="new-group-name" placeholder="Название беседы...">
+                <p style="text-align:left; font-size:13px; color:var(--text-muted); margin-bottom:5px;">Аватарка группы
+                    (опционально):</p>
+                <input type="file" id="new-group-avatar" accept="image/*" style="padding:10px; margin-bottom:12px;">
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-outline" onclick="closeModal('create-group-overlay')"
+                        style="margin-top:0;">Отмена</button>
+                    <button class="btn btn-primary" id="btn-create-group" onclick="confirmCreateGroup()"
+                        style="margin-top:0;">Создать</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="create-news-overlay" class="modal-overlay">
+            <div class="modal-card">
+                <h3 style="margin-bottom:18px; font-size: 18px;">Новая новость</h3>
+                <input type="text" id="new-news-title" placeholder="Заголовок">
+                <p style="text-align:left; font-size:13px; color:var(--text-muted); margin-bottom:5px;">Обложка
+                    (опционально):</p>
+                <input type="file" id="new-news-image-file" accept="image/*" style="padding:10px; margin-bottom:10px;">
+                <input type="text" id="new-news-image" placeholder="Или URL картинки из интернета"
+                    style="margin-bottom:12px;">
+                <textarea id="new-news-text" placeholder="Текст новости..." rows="5"
+                    style="width:100%; padding:16px; margin-bottom:12px; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text); outline:none; font-size: 15px; resize:vertical;"></textarea>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-outline" onclick="closeModal('create-news-overlay')"
+                        style="margin-top:0;">Отмена</button>
+                    <button class="btn btn-primary" id="btn-create-news" onclick="submitNews()"
+                        style="margin-top:0; background:#ff9f0a;">Опубликовать</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-overlay" class="modal-overlay">
+            <div class="modal-card">
+                <h3 style="margin-bottom:18px; font-size: 18px;">Настройки</h3>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <button class="btn btn-outline" onclick="toggleTheme()" style="margin-top:0;">🌓 Сменить
+                        тему</button>
+                    <button class="btn btn-outline" onclick="logout()"
+                        style="margin-top:0; color:#ff3b30; border-color:#ff3b30;">Выйти из аккаунта</button>
+                    <button class="btn btn-outline" onclick="closeModal('settings-overlay')"
+                        style="margin-top:10px;">Закрыть</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="edit-profile-overlay" class="modal-overlay">
+            <div class="modal-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 style="margin:0; font-size: 18px;">Редактировать профиль</h3>
+                    <button onclick="closeModal('edit-profile-overlay')"
+                        style="background:none; border:none; color:var(--text); font-size:22px; cursor:pointer;">✖</button>
+                </div>
+                <p style="text-align:left; font-size:13px; color:var(--text-muted); margin-bottom:5px;">Аватарка:</p>
+                <input type="file" id="edit-profile-avatar" accept="image/*" style="padding:10px; margin-bottom:10px;">
+                <p style="color:var(--text-muted); font-size:13px; margin-bottom:10px; text-align:left;">Никнейм должен
+                    содержать от 3 до 16 символов.</p>
+                <input type="text" id="edit-profile-nick" placeholder="Имя пользователя" maxlength="16"
+                    style="margin-bottom:15px;">
+                <p style="color:var(--text-muted); font-size:13px; margin-bottom:10px; text-align:left;">Расскажите о
+                    себе:</p>
+                <textarea id="edit-profile-bio" placeholder="О себе..." rows="3"
+                    style="width:100%; padding:16px; margin-bottom:15px; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text); outline:none; font-size: 15px; resize:vertical;"></textarea>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-outline" onclick="closeModal('edit-profile-overlay')"
+                        style="margin-top:0;">Отмена</button>
+                    <button class="btn btn-primary" id="btn-edit-profile" onclick="submitEditProfile()"
+                        style="margin-top:0;">Сохранить</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="add-user-overlay" class="modal-overlay">
+            <div class="modal-card" style="display:flex; flex-direction:column; height: 80vh; max-height: 500px;">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-shrink:0;">
+                    <h3 style="margin:0; font-size: 18px;">Добавить участника</h3>
+                    <button onclick="closeModal('add-user-overlay')"
+                        style="background:none; border:none; color:var(--text); font-size:22px; cursor:pointer;">✖</button>
+                </div>
+                <input type="text" id="add-user-search" placeholder="Поиск людей..."
+                    oninput="filterAddUsers(this.value)" style="flex-shrink:0; margin-bottom: 10px;">
+                <div id="add-user-list"
+                    style="flex:1; overflow-y:auto; overflow-x:hidden; text-align:left; border-top:1px solid var(--border); padding-top:10px;">
+                </div>
+            </div>
+        </div>
+
+        <div id="main-ui">
+            <div id="sidebar-resizer"></div>
+            <header>
+                <button id="header-profile-btn" class="header-btn" onclick="handleProfileNav()"
+                    title="Профиль">👤</button>
+                <h2 id="view-title">Чаты</h2>
+                <button id="header-action-btn" class="header-btn" onclick="handleActionBtn()"
+                    title="Сменить тему">🌓</button>
+            </header>
+
+            <div class="content">
+                <div id="chat-sec" class="section active">
+                    <div id="chat-list-container"></div>
+                </div>
+                <div id="users-sec" class="section">
+                    <div style="padding: 10px 15px;"><input type="text" id="user-search" placeholder="Поиск людей..."
+                            oninput="debouncedSearch(this.value)"></div>
+                    <div id="users-list-container"></div>
+                </div>
+                <div id="profile-sec" class="section">Загрузка...</div>
+                <div id="store-sec" class="section" style="padding:40px; text-align:center; color:var(--text-muted);">
+                    Магазин скоро откроется 🛍️</div>
+                <div id="news-sec" class="section">
+                    <div id="news-feed">Загрузка новостей...</div>
+                </div>
+            </div>
+
+            <button id="fab-create-group" class="fab-btn" onclick="openCreateGroupModal()">➕</button>
+            <button id="fab-create-news" class="fab-btn" onclick="openCreateNewsModal()"
+                style="display:none; background:#ff9f0a;">➕</button>
+
+            <nav>
+                <div class="nav-item active" onclick="showSection('chat', 'Чаты')"><span
+                        class="nav-icon">💬</span><span>Чаты</span></div>
+                <div class="nav-item" onclick="showSection('users', 'Люди')"><span
+                        class="nav-icon">👥</span><span>Люди</span></div>
+                <div class="nav-item" onclick="showSection('store', 'Магазин')"><span
+                        class="nav-icon">🛍️</span><span>Магазин</span></div>
+                <div class="nav-item" onclick="showSection('news', 'Новости')"><span
+                        class="nav-icon">📰</span><span>Новости</span></div>
+            </nav>
+        </div>
+
+        <div id="chat-overlay">
+            <header>
+                <button class="back-btn" onclick="closeChat()">←</button>
+                <h2 id="chat-with-name" onclick="onChatHeaderClick()" style="cursor: pointer; transition: 0.2s;"
+                    title="Открыть профиль">Чат</h2>
+                <div id="chat-placeholder" style="width: 60px; display:none;"></div>
+            </header>
+            <div id="chat-messages"></div>
+            <div id="reply-preview-container"
+                style="display:none; padding:8px 15px; border-top:1px solid var(--border); background:var(--surface); align-items:center; justify-content:space-between; border-left:3px solid var(--accent); margin-left:15px; margin-right:15px; margin-top:5px; margin-bottom:-5px; border-radius:4px; z-index:5;">
+                <div style="flex:1; overflow:hidden;">
+                    <div id="reply-preview-author"
+                        style="color:var(--accent); font-weight:bold; font-size:13px; margin-bottom:2px;">Author</div>
+                    <div id="reply-preview-text"
+                        style="color:var(--text-muted); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        Message text</div>
+                </div>
+                <button onclick="cancelReply()"
+                    style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer; padding:5px;">✖</button>
+            </div>
+            <div id="input-area">
+                <button onclick="openChatAttachmentModal()"
+                    style="background:none; color:var(--text-muted); border:none; padding:0 15px 0 0; font-size:22px; cursor:pointer; outline:none;"
+                    title="Прикрепить">📎</button>
+                <input type="text" id="chat-input" placeholder="Написать сообщение..."
+                    onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                <button onclick="sendChatMessage()"
+                    style="background:none; color:var(--accent); border:none; padding:0 0 0 15px; margin-left:5px; font-size:24px; cursor:pointer; outline:none;">➤</button>
+            </div>
+        </div>
+
+        <div id="pc-placeholder">
+            <div style="font-size: 60px; margin-bottom: 15px; opacity: 0.8; filter: grayscale(100%);">💬</div>
+            <div
+                style="background: var(--surface); padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: 500;">
+                Выберите чат для общения</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+        const socket = io();
+
+        function handleActionBtn() {
+            const actionBtn = document.getElementById('header-action-btn');
+            if (actionBtn.innerText === '⚙️') {
+                document.getElementById('settings-overlay').style.display = 'flex';
+            } else {
+                toggleTheme();
+            }
+        }
+
+        let currentUser = null;
+        let activeChatId = null;
+        let currentChatIsGroup = false;
+        let allUsersList = [];
+
+        // Хелперы для загрузки файлов и аватарок
+        async function uploadFile(fileInputId) {
+            const fileInput = document.getElementById(fileInputId);
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) return null;
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+
+            try {
+                const res = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    fileInput.value = ''; // сброс инпута
+                    return data.url;
+                }
+                return null;
+            } catch (e) { return null; }
+        }
+
+        function getAvatarHtml(letter, url, size = 40, styleStr = '') {
+            if (url) {
+                return `<img src="${url}" style="width:${size}px; height:${size}px; border-radius:50%; object-fit:cover; border:1px solid var(--border); flex-shrink:0; ${styleStr}">`;
+            }
+
+            let displayChar = '?';
+            if (letter) {
+                const chars = Array.from(letter);
+                displayChar = chars[0].length > 1 ? chars[0] : chars[0].toUpperCase();
+            }
+
+            return `<div style="width:${size}px; height:${size}px; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-weight:bold; flex-shrink:0; color:var(--text); font-size:${Math.round(size * 0.4)}px; ${styleStr}">
+            ${displayChar}
+        </div>`;
+        }
+
+        // Для логики кнопки "Назад" профиля
+        let previousTab = { id: 'chat', title: 'Чаты' };
+
+        function toggleTheme() {
+            const body = document.body;
+            const newTheme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+        if (localStorage.getItem('theme')) document.body.setAttribute('data-theme', localStorage.getItem('theme'));
+
+        async function handleAuth(type) {
+            const nickname = document.getElementById('auth-nick').value.trim();
+            const password = document.getElementById('auth-pass').value.trim();
+            if (!nickname || !password) return alert('Заполните поля!');
+            if (type === 'register' && (nickname.length < 3 || nickname.length > 16)) return alert('Имя пользователя должно быть от 3 до 16 символов!');
+            try {
+                const res = await fetch(`${API_URL}/${type}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname, password }) });
+                const data = await res.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    socket.emit('user_login', currentUser.id);
+                    document.getElementById('auth-screen').style.display = 'none';
+                    document.getElementById('main-ui').style.display = 'flex';
+                    showSection('chat', 'Чаты');
+                } else alert(data.message);
+            } catch (e) { alert('Ошибка сервера'); }
+        }
+
+        // Умная кнопка профиля (становится стрелкой возврата)
+        function handleProfileNav() {
+            const isProfileOpen = document.getElementById('profile-sec').classList.contains('active');
+            if (isProfileOpen) {
+                showSection(previousTab.id, previousTab.title); // Возврат
+            } else {
+                showSection('profile', 'Мой профиль'); // Открытие
+            }
+        }
+
+        function showSection(id, title, profileNickname = null) {
+            // ЗАКРЫВАЕМ ЧАТ ПРИ ПЕРЕКЛЮЧЕНИИ ВКЛАДОК
+            closeChat();
+
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+
+            const sec = document.getElementById(id + '-sec');
+            if (sec) sec.classList.add('active');
+
+            const titleEl = document.getElementById('view-title');
+            if (titleEl) titleEl.innerText = title;
+
+            const activeBtn = Array.from(document.querySelectorAll('.nav-item')).find(btn => btn.getAttribute('onclick').includes(`'${id}'`));
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Показываем плавающую кнопку только во вкладке Чаты
+            const fab = document.getElementById('fab-create-group');
+            if (fab) fab.style.display = (id === 'chat') ? 'flex' : 'none';
+
+            // Управление стрелочкой/человечком
+            const profileBtn = document.getElementById('header-profile-btn');
+            if (profileBtn) {
+                if (id === 'profile') {
+                    profileBtn.innerText = '←';
+                } else {
+                    previousTab = { id, title }; // Запоминаем последнюю вкладку
+                    profileBtn.innerText = '👤';
+                }
+            }
+
+            if (id === 'chat') loadMyChats();
+            if (id === 'users') loadUsers();
+            if (id === 'profile') loadProfile(profileNickname);
+
+            // ДОБАВЬТЕ ЭТУ СТРОКУ:
+            if (id === 'news') loadNews();
+        }
+
+        // --- СИСТЕМА РАНГОВ И ИХ ВНЕШНЕГО ВИДА ---
+        const RANK_THRESHOLDS = [
+            { rank: 'Легенда', full: '🌟 Легенда', threshold: 5000, color: 'linear-gradient(135deg, #ffd700, #ff8c00)' },
+            { rank: 'Старейшина', full: '👑 Старейшина', threshold: 1500, color: 'linear-gradient(135deg, #ff416c, #ff4b2b)' },
+            { rank: 'Доверенный', full: '🛡️ Доверенный', threshold: 500, color: 'linear-gradient(135deg, #fceabb, #f8b500)' },
+            { rank: 'Активный', full: '⚡ Активный', threshold: 100, color: 'linear-gradient(135deg, #00c6ff, #0072ff)' },
+            { rank: 'Новичок', full: 'Новичок', threshold: 0, color: '#8e8e93' }
+        ];
+
+        function getRankDataByName(rankStr, currentPoints = 0) {
+            if (!rankStr) rankStr = 'Новичок';
+            if (rankStr.includes('Всевышний') || rankStr.includes('Админ')) {
+                return { name: '👁️‍🗨️ Всевышний', color: 'linear-gradient(135deg, #8E2DE2, #4A00E0)', percentage: 100, nextT: 'MAX', level: 'MAX', nextName: 'MAX' };
+            }
+            if (rankStr.includes('Куратор')) {
+                return { name: '🛡️ Куратор', color: 'linear-gradient(135deg, #FF416C, #FF4B2B)', percentage: 100, nextT: 'MAX', level: 'MAX', nextName: 'MAX' };
+            }
+
+            let activeRankInfo = RANK_THRESHOLDS[4];
+            let nextRankInfo = RANK_THRESHOLDS[3];
+            let currentT = 0;
+            let nextT = 100;
+            let level = 1;
+
+            for (let i = RANK_THRESHOLDS.length - 1; i >= 0; i--) {
+                if (rankStr.includes(RANK_THRESHOLDS[i].rank)) {
+                    activeRankInfo = RANK_THRESHOLDS[i];
+                    level = (RANK_THRESHOLDS.length - 1) - i + 1;
+                    currentT = RANK_THRESHOLDS[i].threshold;
+                    if (i > 0) {
+                        nextRankInfo = RANK_THRESHOLDS[i - 1];
+                        nextT = nextRankInfo.threshold;
+                    } else {
+                        nextRankInfo = RANK_THRESHOLDS[0];
+                        nextT = currentPoints;
+                    }
+                    break;
+                }
+            }
+
+            let percentage = 100;
+            if (nextT > currentT) percentage = Math.min(((currentPoints - currentT) / (nextT - currentT)) * 100, 100);
+
+            return { name: activeRankInfo.full, color: activeRankInfo.color, percentage, nextT, level, nextName: nextRankInfo.full };
+        }
+
+        // Оптимизация поиска: Debounce и AbortController
+        let searchTimeout;
+        let usersAbortController = null;
+
+        function debouncedSearch(term) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                filterUsersWithAbort(term);
+            }, 300); // 300мс задержка
+        }
+
+        async function filterUsersWithAbort(term) {
+            if (!term) return renderUsersList(allUsersList);
+
+            // Прерываем предыдущий активный запрос, если он был
+            if (usersAbortController) {
+                usersAbortController.abort();
+            }
+            usersAbortController = new AbortController();
+
+            try {
+                // Демонстрация работы Abort Controller (можно также просто фильтровать массив как раньше)
+                // Но мы отфильтруем локальный кэш, имитируя запрос через Promise
+                const filtered = allUsersList.filter(u => u.nickname.toLowerCase().includes(term.toLowerCase()));
+                renderUsersList(filtered);
+            } catch (err) {
+                if (err.name === 'AbortError') console.log('Поиск прерван');
+            }
+        }
+
+        async function loadUsers() {
+            if (usersAbortController) usersAbortController.abort();
+            usersAbortController = new AbortController();
+
+            try {
+                const res = await fetch(`${API_URL}/users`, { signal: usersAbortController.signal });
+                allUsersList = await res.json();
+                renderUsersList(allUsersList);
+            } catch (err) {
+                if (err.name !== 'AbortError') console.error('Ошибка загрузки пользователей', err);
+            }
+        }
+        function renderUsersList(users) {
+            const container = document.getElementById('users-list-container');
+            container.innerHTML = users.map(user => {
+                const rData = getRankDataByName(user.rank, user.points);
+                return `
+            <div class="list-item">
+                <div onclick="showSection('profile', 'Профиль: ${user.nickname}', '${user.nickname}')" style="display:flex; flex:1; align-items:center; overflow:hidden;">
+                    ${getAvatarHtml(user.nickname, user.avatar_url, 45, 'margin-right:15px;')}
+                    <div style="flex:1; overflow:hidden;">
+                        <div style="font-weight:bold; display:flex; align-items:center; color:var(--text);">
+                            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${user.nickname}</span>
+                            <span style="font-size:10px; padding:2px 6px; background:${rData.color}; color:white; border-radius:10px; margin-left:8px; white-space:nowrap; font-weight:bold;">${rData.name}</span>
+                        </div>
+                        <div style="color:var(--text-muted); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${user.bio}</div>
+                    </div>
+                </div>
+                <div onclick="openChatWith('${user.id}', '${user.nickname}')" style="width:38px; height:38px; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; margin-left:10px; font-size:18px; transition: 0.2s;">💬</div>
+            </div>
+        `}).join('');
+        }
+
+        async function loadProfile(targetNickname = null) {
+            if (!currentUser) return;
+            const nickQ = targetNickname || currentUser.nickname;
+            try {
+                const res = await fetch(`${API_URL}/profile/${nickQ}`);
+                const user = await res.json();
+                const isMy = (nickQ === currentUser.nickname);
+                const rData = getRankDataByName(user.rank, user.points || 0);
+
+                document.getElementById('profile-sec').innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    ${getAvatarHtml(user.nickname, user.avatar_url, 100, 'margin-top:20px; margin-bottom:15px; border-width:2px; font-size:40px;')}
+                    <h2 style="margin:0; text-align:center; color:var(--text); display:flex; align-items:center; justify-content:center; gap:8px;">
+                        ${user.nickname}
+                    </h2>
+                    <div style="margin-top:5px; margin-bottom:10px;">
+                         <span style="font-size:12px; padding:4px 10px; background:${rData.color}; color:white; border-radius:12px; font-weight:bold;">${rData.name}</span>
+                    </div>
+                    <div style="color:var(--text-muted); font-size:14px; text-align:center; padding:0 20px; margin-bottom:15px;">
+                        ${user.bio || 'Нет описания'}
+                    </div>
+                    ${isMy ? `<div onclick="openEditProfile()" style="color:var(--accent); font-weight:bold; cursor:pointer; margin-bottom:20px; font-size:14px;">✎ Редактировать профиль</div>` : ''}
+
+                    <div style="display:flex; gap:10px; width:100%; max-width:350px; margin-bottom:20px; box-sizing:border-box;">
+                         <div style="flex:1; background:var(--surface); border-radius:16px; padding:15px 5px; text-align:center; border:1px solid var(--border);">
+                             <div style="font-size:20px; font-weight:bold; color:var(--text); margin-bottom:4px; display:flex; justify-content:center; align-items:center;"><span style="color:#f39c12; margin-right:4px;">💰</span>${user.credits || 0}</div>
+                             <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">Кредиты</div>
+                         </div>
+                         <div style="flex:1; background:var(--surface); border-radius:16px; padding:15px 5px; text-align:center; border:1px solid var(--border);">
+                             <div style="font-size:20px; font-weight:bold; color:var(--text); margin-bottom:4px; display:flex; justify-content:center; align-items:center;"><span style="color:#007aff; margin-right:4px;">⚡</span>${user.points || 0}</div>
+                             <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">Баллы</div>
+                         </div>
+                         <div style="flex:1; background:var(--surface); border-radius:16px; padding:15px 5px; text-align:center; border:1px solid var(--border);">
+                             <div style="font-size:15px; font-weight:bold; margin-bottom:4px; display:flex; justify-content:center; align-items:center; background:${rData.color}; -webkit-background-clip:text; color:transparent; min-height:24px;">${rData.name.split(' ')[1] || rData.name}</div>
+                             <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">Ранг</div>
+                         </div>
+                    </div>
+
+                    <div style="width:100%; max-width:350px; background:var(--surface); border-radius:16px; padding:20px; border:1px solid var(--border); box-sizing:border-box;">
+                        <div style="font-weight:bold; margin-bottom:15px; font-size:16px; display:flex; justify-content:space-between; align-items:center; color:var(--text);">
+                            <span>Прогресс ранга</span>
+                            ${rData.level !== 'MAX' ? `<span style="font-size:12px; color:var(--text-muted); font-weight:normal;">Уровень ${rData.level}</span>` : ''}
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold; margin-bottom:8px;">
+                             <span style="background:${rData.color}; -webkit-background-clip:text; color:transparent;">${rData.name}</span>
+                             <span style="color:var(--text-muted);">${rData.nextName}</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:var(--bg); border-radius:4px; overflow:hidden; margin-bottom:8px;">
+                             <div style="height:100%; width:${rData.percentage}%; background:${rData.color}; border-radius:4px;"></div>
+                        </div>
+                        <div style="font-size:11px; color:var(--text-muted);">
+                             ${rData.level !== 'MAX' ? `${user.points || 0} / ${rData.nextT} баллов` : `МАКСИМУМ БАЛЛОВ ОПЫТА`}
+                        </div>
+                    </div>
+                    ${isMy ? `<button onclick="logout()" class="btn btn-outline" style="margin-top:20px; width:100%; max-width:350px; color:#ff3b30; border-color:#ff3b30;">Выйти из аккаунта</button>` : ''}
+                    ${(!isMy && currentUser.rank && currentUser.rank.includes('Всевышний') && (!user.rank || (!user.rank.includes('Всевышний') && !user.rank.includes('Куратор')))) ? `<button onclick="assignCurator('${user.nickname}')" class="btn btn-primary" style="background:linear-gradient(135deg, #8E2DE2, #4A00E0); border:none; margin-top:20px; width:100%; max-width:350px;">Назначить Куратором 🛡️</button>` : ''}
+                </div>
+            `;
+            } catch (e) { }
+        }
+
+        async function assignCurator(targetNickname) {
+            if (!confirm(`Назначить пользователя ${targetNickname} Куратором?`)) return;
+            try {
+                const res = await fetch(`${API_URL}/moderation/assign-curator`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ adminId: currentUser.id, targetNickname })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Роль Куратор успешно выдана!');
+                    loadProfile(targetNickname);
+                } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                }
+            } catch (e) {
+                alert('Сбой сети');
+            }
+        }
+
+        function logout() {
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                location.reload();
+            }
+        }
+
+        async function openEditProfile() {
+            document.getElementById('edit-profile-nick').value = currentUser.nickname;
+
+            try {
+                const res = await fetch(`${API_URL}/profile/${currentUser.nickname}`);
+                const user = await res.json();
+                document.getElementById('edit-profile-bio').value = user.bio || '';
+            } catch (e) {
+                document.getElementById('edit-profile-bio').value = '';
+            }
+
+            document.getElementById('edit-profile-overlay').style.display = 'flex';
+        }
+
+        async function uploadFile(inputId) {
+            const fileInput = document.getElementById(inputId);
+            if (!fileInput || !fileInput.files || !fileInput.files.length) return null;
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+
+            try {
+                const res = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.error) {
+                    alert('Ошибка загрузки фото: ' + data.error);
+                    return null;
+                }
+                return data.url;
+            } catch (e) {
+                alert('Сбой сети при загрузке: ' + e.message);
+                return null;
+            }
+        }
+
+        async function submitEditProfile() {
+            const btn = document.getElementById('btn-edit-profile');
+            if (btn) btn.disabled = true;
+
+            const newNick = document.getElementById('edit-profile-nick').value.trim();
+            const newBio = document.getElementById('edit-profile-bio').value.trim();
+
+            if (newNick.length < 3 || newNick.length > 16) {
+                if (btn) btn.disabled = false;
+                return alert('Имя должно содержать от 3 до 16 символов.');
+            }
+
+            let newAvatarUrl = await uploadFile('edit-profile-avatar');
+
+            let isBioUpdated = false;
+            let isNickUpdated = false;
+
+            try {
+                await fetch(`${API_URL}/profile/update-bio`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: currentUser.nickname, bio: newBio, avatar_url: newAvatarUrl || null })
+                });
+                isBioUpdated = true;
+
+                if (newNick !== currentUser.nickname) {
+                    const res = await fetch(`${API_URL}/profile/update-nickname`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: currentUser.id, newNickname: newNick })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        currentUser.nickname = newNick;
+                        isNickUpdated = true;
+                    } else {
+                        alert(data.error || 'Ошибка при обновлении ника');
+                    }
+                } else {
+                    isNickUpdated = true;
+                }
+
+                if (isBioUpdated && isNickUpdated) {
+                    closeModal('edit-profile-overlay');
+                    loadProfile();
+                }
+            } catch (e) {
+                alert('Ошибка сервера');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function loadMyChats() {
+            if (!currentUser) return;
+            try {
+                const res = await fetch(`${API_URL}/chats/my/${currentUser.id}`);
+                const chats = await res.json();
+                const container = document.getElementById('chat-list-container');
+                if (chats.length === 0) { container.innerHTML = '<div style="text-align:center; color:var(--text-muted); margin-top:40px; font-size:15px;">Нет активных чатов</div>'; return; }
+
+                container.innerHTML = chats.map(c => `
+                <div class="list-item" onclick="openChatById(${c.chat_id}, '${c.chat_name}', ${c.is_group})">
+                    ${c.chat_name === 'Избранное'
+                        ? getAvatarHtml('🔖', null, 50, 'margin-right:15px; background:var(--accent); color:white; font-size:22px;')
+                        : getAvatarHtml(c.chat_name, c.is_group ? c.group_avatar : c.other_avatar, 50, 'margin-right:15px; font-size:22px;')}
+                    <div style="flex:1; overflow:hidden;">
+                        <div style="font-weight:bold; display:flex; align-items:center; color:var(--text); margin-bottom:3px;">
+                            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.chat_name}</span>
+                            ${(!c.is_group && c.chat_name !== 'Избранное') ? `<span class="rank-badge">${c.chat_rank}</span>` : ''}
+                            ${c.is_group ? `<span class="group-tag">Беседа</span>` : ''}
+                        </div>
+                        <div style="color:var(--text-muted); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${c.last_msg || 'Нет сообщений'}
+                        </div>
+                    </div>
+                    ${c.unread_count > 0 ? `<div class="unread-badge">${c.unread_count}</div>` : ''}
+                </div>
+            `).join('');
+            } catch (e) { }
+        }
+
+        async function openChatWith(targetId, targetName) {
+            try {
+                const res = await fetch(`${API_URL}/chats/get-or-create`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user1_id: currentUser.id, user2_id: targetId }) });
+                const data = await res.json();
+                openChatById(data.chat_id, (targetId == currentUser.id ? 'Избранное' : targetName), false);
+            } catch (e) { }
+        }
+
+        function openChatById(chatId, name, isGroup) {
+            activeChatId = chatId;
+            currentChatIsGroup = isGroup;
+
+            const nameHeader = document.getElementById('chat-with-name');
+            nameHeader.innerText = name;
+            nameHeader.style.cursor = 'pointer';
+            nameHeader.title = isGroup ? 'Информация о беседе' : 'Открыть профиль';
+
+            document.getElementById('chat-overlay').style.display = 'flex';
+            document.getElementById('chat-placeholder').style.display = isGroup ? 'none' : 'block';
+
+            loadChatHistory(chatId);
+            socket.emit('join_room', chatId);
+            socket.emit('mark_read', { chatId, userId: currentUser.id });
+            loadMyChats();
+        }
+
+        function onChatHeaderClick() {
+            if (currentChatIsGroup) {
+                openGroupInfo();
+                return;
+            }
+            const nickname = document.getElementById('chat-with-name').innerText;
+            if (nickname === 'Избранное') return;
+            closeChat();
+            showSection('profile', 'Профиль: ' + nickname, nickname);
+        }
+
+        async function loadChatHistory(chatId) {
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = '';
+            try {
+                const res = await fetch(`${API_URL}/messages/${chatId}`);
+                const messages = await res.json();
+                messages.forEach(addMsgToDOM);
+                container.scrollTop = container.scrollHeight;
+            } catch (e) { }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text || !activeChatId) return;
+            socket.emit('send_msg', { chatId: activeChatId, senderId: currentUser.id, text });
+            input.value = '';
+        }
+
+        socket.on('new_msg', (msg) => {
+            if (msg.chat_id == activeChatId) {
+                addMsgToDOM(msg);
+                if (msg.sender_id != currentUser.id) socket.emit('mark_read', { chatId: activeChatId, userId: currentUser.id });
+            }
+            loadMyChats();
+        });
+
+        socket.on('update_chat_list', loadMyChats);
+
+        // События бесед
+        socket.on('group_renamed', (data) => {
+            if (activeChatId == data.chatId) document.getElementById('chat-with-name').innerText = data.newTitle;
+            loadMyChats();
+        });
+
+        // МГНОВЕННОЕ ОБНОВЛЕНИЕ ИНФО
+        socket.on('group_structure_changed', (chatId) => {
+            if (activeChatId == chatId && document.getElementById('group-info-overlay').style.display === 'flex') openGroupInfo();
+        });
+
+        // УДАЛЕНИЕ БЕСЕДЫ
+        socket.on('group_deleted', (chatId) => {
+            if (activeChatId == chatId) {
+                closeChat();
+                alert('Эта беседа была удалена администратором.');
+            }
+            loadMyChats();
+        });
+
+        function addMsgToDOM(msg) {
+            const container = document.getElementById('chat-messages');
+            const isMine = msg.sender_id == currentUser.id;
+
+            const msgContainer = document.createElement('div');
+            msgContainer.className = `msg-container ${isMine ? 'my' : 'other'}`;
+
+            if (!isMine) {
+                const avatarHtml = getAvatarHtml(msg.sender_name, msg.sender_avatar, 34);
+                const avatarWrapper = document.createElement('div');
+                avatarWrapper.innerHTML = avatarHtml;
+                avatarWrapper.style.marginRight = '8px';
+                msgContainer.appendChild(avatarWrapper.firstChild);
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.flexDirection = 'column';
+            if (isMine) wrapper.style.alignItems = 'flex-end';
+            else wrapper.style.alignItems = 'flex-start';
+
+            // Имя и ранг ВЫШЕ сообщения
+            if (!isMine) {
+                const topHeader = document.createElement('div');
+                topHeader.style.marginLeft = '8px';
+                topHeader.style.marginBottom = '3px';
+                topHeader.style.fontSize = '13px';
+                const rData = getRankDataByName(msg.sender_rank);
+                topHeader.innerHTML = `<span style="font-weight:700; color:var(--text);">${msg.sender_name || '???'}</span> <span style="font-weight:600; font-size:10px; color:white; background:${rData.color}; padding:2px 6px; border-radius:8px; margin-left:4px;">${rData.name}</span>`;
+                wrapper.appendChild(topHeader);
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = 'msg-bubble';
+
+            const text = document.createElement('div');
+            text.className = 'msg-text';
+            text.innerText = msg.text;
+            bubble.appendChild(text);
+
+            // Права (модер/админ) ВНУТРИ сообщения справа сверху
+            if (msg.sender_role && msg.sender_role !== 'user') {
+                const roleTag = document.createElement('div');
+                roleTag.className = 'msg-role-tag';
+                roleTag.innerText = msg.sender_role === 'moderator' ? 'MODER' : msg.sender_role;
+                bubble.appendChild(roleTag);
+
+                // Защита от наслоения текста друг на друга
+                text.style.paddingRight = '45px';
+                text.style.minHeight = '14px'; // чтобы маленькие сообщения не ломали верстку тега
+            }
+
+            wrapper.appendChild(bubble);
+            msgContainer.appendChild(wrapper);
+            container.appendChild(msgContainer);
+
+            if (Math.abs(container.scrollHeight - container.clientHeight - container.scrollTop) < 100 || isMine) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function closeChat() {
+            document.getElementById('chat-overlay').style.display = 'none';
+            activeChatId = null;
+        }
+
+        function openCreateGroupModal() {
+            document.getElementById('new-group-name').value = '';
+            document.getElementById('create-group-overlay').style.display = 'flex';
+        }
+        async function confirmCreateGroup() {
+            const btn = document.getElementById('btn-create-group');
+            if (btn) btn.disabled = true;
+
+            const title = document.getElementById('new-group-name').value.trim();
+            if (!title) { if (btn) btn.disabled = false; return alert('Введите название'); }
+
+            let avatarUrl = await uploadFile('new-group-avatar');
+
+            try {
+                const res = await fetch(`${API_URL}/chats/create-group`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, creator_id: currentUser.id, avatar_url: avatarUrl }) });
+                closeModal('create-group-overlay');
+                loadMyChats();
+            } catch (e) { } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        // --- НОВОСТИ ---
+        let newsAbortController = null;
+
+        async function loadNews() {
+            if (newsAbortController) newsAbortController.abort();
+            newsAbortController = new AbortController();
+
+            try {
+                const res = await fetch(`${API_URL}/news`, { signal: newsAbortController.signal });
+                const newsList = await res.json();
+                renderNews(newsList);
+            } catch (err) {
+                if (err.name !== 'AbortError') console.error('Ошибка загрузки новостей', err);
+            }
+        }
+
+        function renderNews(newsList) {
+            const container = document.getElementById('news-feed');
+            if (newsList.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:var(--text-muted); margin-top:40px;">Пока нет новостей</div>';
+                return;
+            }
+
+            container.innerHTML = newsList.map(n => {
+                const dateStr = new Date(n.created_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                const rData = getRankDataByName(n.author_rank || 'Новичок');
+                const canDelete = currentUser && (currentUser.rank && (currentUser.rank.includes('Всевышний') || currentUser.rank.includes('Куратор')) || currentUser.id === n.author_id);
+                return `
+            <div class="news-card" style="position:relative;">
+                ${canDelete ? `<button onclick="deleteNews(${n.id})" style="position:absolute; top:8px; right:8px; background:var(--surface); border:1px solid var(--border); border-radius:8px; width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; z-index:10; color:#ff3b30;">🗑️</button>` : ''}
+                ${n.image_url ? `<img src="${n.image_url}" class="news-img" alt="Новость">` : ''}
+                <div class="news-content">
+                    <div style="font-weight:bold; display:flex; align-items:center; color:var(--text); margin-bottom: 5px; padding-right:25px;">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${n.author_name}</span>
+                        <span style="font-size:10px; padding:2px 6px; background:${rData.color}; color:white; border-radius:10px; margin-left:8px; white-space:nowrap; font-weight:bold;">${rData.name}</span>
+                    </div>
+                    <div class="news-title">${n.title}</div>
+                    <div class="news-text">${n.description}</div>
+                    <div class="news-date">${dateStr}</div>
+                </div>
+            </div>
+            `;
+            }).join('');
+        }
+
+        async function deleteNews(newsId) {
+            if (!confirm('Вы уверены, что хотите удалить эту новость? Если вы автор, спишется 50 баллов опыта.')) return;
+            try {
+                const res = await fetch(`${API_URL}/news/${newsId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUser.id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    loadNews();
+                } else alert(data.error || 'Ошибка удаления');
+            } catch (e) {
+                alert('Сбой сети при удалении');
+            }
+        }
+
+        function openCreateNewsModal() {
+            document.getElementById('new-news-title').value = '';
+            document.getElementById('new-news-image').value = '';
+            document.getElementById('new-news-text').value = '';
+            document.getElementById('create-news-overlay').style.display = 'flex';
+        }
+
+        async function submitNews() {
+            const btn = document.getElementById('btn-create-news');
+            if (btn) btn.disabled = true;
+
+            const title = document.getElementById('new-news-title').value.trim();
+            let image_url = document.getElementById('new-news-image').value.trim();
+            const description = document.getElementById('new-news-text').value.trim();
+
+            if (!title || !description) {
+                if (btn) btn.disabled = false;
+                return alert('Заполните заголовок и текст!');
+            }
+
+            let uploadedUrl = await uploadFile('new-news-image-file');
+            if (uploadedUrl) image_url = uploadedUrl;
+
+            try {
+                const res = await fetch(`${API_URL}/news`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, description, image_url, author_id: currentUser.id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    closeModal('create-news-overlay');
+                    loadNews();
+                } else {
+                    alert(data.message || 'Ошибка');
+                }
+            } catch (e) {
+                alert('Ошибка сервера');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function openGroupInfo() {
+            try {
+                // ДОБАВЛЕН cache: 'no-store', чтобы браузер не отдавал старую версию списка
+                const res = await fetch(`${API_URL}/chats/${activeChatId}/members`, { cache: 'no-store' });
+                const members = await res.json();
+                const myM = members.find(m => m.id === currentUser.id);
+                const myRole = myM ? myM.role : 'user';
+
+                const controls = document.getElementById('admin-controls');
+                controls.innerHTML = '';
+
+                if (myRole === 'admin' || myRole === 'moderator') {
+                    controls.innerHTML += `<button onclick="renameGroup()" class="btn btn-outline" style="padding:10px; font-size:14px; margin-top:0;">✏️ Изменить название</button>`;
+                    controls.innerHTML += `<button onclick="promptAddUser()" class="btn btn-primary" style="padding:10px; font-size:14px; margin-top:0;">+ Добавить участника</button>`;
+                }
+
+                // Кнопка удаления (только для Админа)
+                if (myRole === 'admin') {
+                    controls.innerHTML += `<button onclick="deleteGroup()" class="btn btn-outline" style="padding:10px; font-size:14px; margin-top:0; color:#ff3b30; border-color:#ff3b30;">🗑️ Удалить беседу</button>`;
+                }
+
+                const list = document.getElementById('group-members-list');
+                list.innerHTML = members.map(m => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border);">
+                    <div style="display:flex; align-items:center;">
+                        ${getAvatarHtml(m.nickname, m.avatar_url, 30, 'margin-right:10px;')}
+                        <div>
+                            <strong style="color:var(--text);">${m.nickname}</strong>
+                            <span style="font-size:10px; padding:2px 5px; background:var(--bg); border:1px solid var(--border); border-radius:5px; margin-left:5px; color:var(--text-muted);">
+                                ${m.role === 'admin' ? '👑 Админ' : (m.role === 'moderator' ? '🛡️ Модер' : 'Участник')}
+                            </span>
+                            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">⚡ ${m.rank}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        ${myRole === 'admin' && m.id !== currentUser.id ? `
+                            ${m.role === 'user' ? `<button onclick="setUserRole(${m.id}, 'moderator')" style="background:var(--accent); color:white; border:none; padding:6px 10px; border-radius:8px; font-size:11px; cursor:pointer; font-weight:600;">👑 Повысить</button>` : ''}
+                            ${m.role === 'moderator' ? `<button onclick="setUserRole(${m.id}, 'user')" style="background:var(--surface); color:var(--text); border:1px solid var(--border); padding:6px 10px; border-radius:8px; font-size:11px; cursor:pointer; font-weight:600;">⬇️ Понизить</button>` : ''}
+                        ` : ''}
+
+                        ${canIKick(myRole, m.role, m.id) ? `
+                            <button onclick="kickUser(${m.id})" style="background:#ff3b30; color:white; border:none; padding:6px 10px; border-radius:8px; font-size:11px; cursor:pointer; font-weight:600;">Кик</button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+                document.getElementById('group-info-overlay').style.display = 'flex';
+            } catch (e) { }
+        }
+
+        function canIKick(myRole, targetRole, targetId) {
+            if (targetId === currentUser.id) return false;
+            if (myRole === 'admin') return true;
+            if (myRole === 'moderator' && targetRole === 'user') return true;
+            return false;
+        }
+
+        function setUserRole(targetId, newRole) {
+            if (!confirm(`Изменить права пользователя?`)) return;
+            socket.emit('set_user_role', { chatId: activeChatId, adminId: currentUser.id, targetId: targetId, role: newRole });
+        }
+
+        function promptAddUser() {
+            document.getElementById('add-user-search').value = '';
+            document.getElementById('add-user-overlay').style.display = 'flex';
+            renderAddUserList(allUsersList);
+        }
+
+        function filterAddUsers(term) {
+            if (!term) return renderAddUserList(allUsersList);
+            const lowerTerm = term.toLowerCase();
+            const filtered = allUsersList.filter(u => u.nickname.toLowerCase().includes(lowerTerm));
+            renderAddUserList(filtered);
+        }
+
+        function renderAddUserList(usersList) {
+            const container = document.getElementById('add-user-list');
+            const others = usersList.filter(u => u.id !== currentUser.id);
+            if (others.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:var(--text-muted); margin-top:20px;">Нет пользователей</div>';
+                return;
+            }
+
+            container.innerHTML = others.map(u => {
+                const rData = getRankDataByName(u.rank, u.points);
+                return `
+            <div style="display:flex; align-items:center; border-bottom:1px solid var(--border); padding: 10px 0;">
+                ${getAvatarHtml(u.nickname, u.avatar_url, 40, 'margin-right:12px;')}
+                <div style="flex:1; overflow:hidden;">
+                    <div style="font-weight:bold; display:flex; align-items:center; color:var(--text);">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${u.nickname}</span>
+                    </div>
+                    <div style="font-size:11px; color:white; padding:2px 6px; border-radius:10px; background:${rData.color}; display:inline-block; margin-top:4px;">${rData.name}</div>
+                </div>
+                <button class="btn btn-primary" onclick="confirmAddUser('${u.nickname}')" style="margin-top:0; width:auto; padding:6px 12px; font-size:12px; border-radius:8px;">Выбрать</button>
+            </div>
+            `;
+            }).join('');
+        }
+
+        function confirmAddUser(nick) {
+            if (!activeChatId) return;
+            socket.emit('add_to_group', { chatId: activeChatId, nickname: nick });
+            closeModal('add-user-overlay');
+        }
+
+        function kickUser(targetId) {
+            if (confirm("Удалить участника?")) socket.emit('kick_user', { chatId: activeChatId, adminId: currentUser.id, targetId: targetId });
+        }
+
+        function renameGroup() {
+            const cur = document.getElementById('chat-with-name').innerText;
+            const newT = prompt("Новое название:", cur);
+            if (newT && newT.trim() && newT.trim() !== cur) socket.emit('rename_group', { chatId: activeChatId, adminId: currentUser.id, newTitle: newT.trim() });
+        }
+
+        function deleteGroup() {
+            if (confirm("Вы уверены, что хотите удалить эту беседу? Это действие необратимо!")) {
+                socket.emit('delete_group', { chatId: activeChatId, adminId: currentUser.id });
+                closeModal('group-info-overlay');
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        // --- SIDEBAR RESIZER ---
+        const resizer = document.getElementById('sidebar-resizer');
+        const mainUi = document.getElementById('main-ui');
+        let isResizing = false;
+
+        if (resizer && mainUi) {
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'col-resize';
+                resizer.classList.add('is-resizing');
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                let newWidth = e.clientX;
+                if (newWidth < 250) newWidth = 250;
+                if (newWidth > window.innerWidth * 0.5) newWidth = window.innerWidth * 0.5;
+
+                mainUi.style.width = newWidth + 'px';
+                mainUi.style.minWidth = newWidth + 'px';
+                mainUi.style.maxWidth = newWidth + 'px';
+
+                const newsSec = document.getElementById('news-sec');
+                if (newsSec.classList.contains('active') && window.innerWidth >= 1024) {
+                    newsSec.style.left = newWidth + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.cursor = '';
+                    resizer.classList.remove('is-resizing');
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

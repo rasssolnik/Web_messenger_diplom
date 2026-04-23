@@ -1,0 +1,26 @@
+{
+  "name": "wb",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cloudinary": "^2.9.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mammoth": "^1.12.0",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^2.2.1",
+    "pg": "^8.20.0",
+    "socket.io": "^4.8.3",
+    "socket.io-msgpack-parser": "^3.0.2"
+  }
+}
